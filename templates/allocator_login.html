@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Allocator Login - Student Allotment System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background elements */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            top: -150px;
+            right: -150px;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            bottom: -100px;
+            left: -100px;
+            animation: pulse 6s ease-in-out infinite reverse;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.3; }
+            50% { transform: scale(1.1) rotate(180deg); opacity: 0.1; }
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            padding: 40px 20px 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            animation: slideDown 0.8s ease-out 0.2s forwards;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+            opacity: 0;
+            animation: slideDown 0.8s ease-out 0.4s forwards;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            animation: slideDown 0.8s ease-out 0.6s forwards;
+        }
+
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateX(-3px);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .styled-form {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 100%;
+            max-width: 420px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: formSlideUp 0.8s ease-out 0.8s forwards;
+        }
+
+        @keyframes formSlideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .welcome-message {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .welcome-message h2 {
+            font-size: 1.5rem;
+            color: #2d3748;
+            margin-bottom: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .welcome-message h2::before {
+            content: '⚙️';
+            font-size: 1.8rem;
+        }
+
+        .welcome-message p {
+            color: #718096;
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2d3748;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: color 0.3s ease;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 16px 14px 48px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+            color: #2d3748;
+            font-family: inherit;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #ed8936;
+            box-shadow: 0 0 0 4px rgba(237, 137, 54, 0.1);
+            transform: translateY(-2px);
+        }
+
+        input:valid:not(:placeholder-shown) {
+            border-color: #48bb78;
+        }
+
+        input:invalid:not(:placeholder-shown) {
+            border-color: #f56565;
+        }
+
+        /* Input icons */
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a0aec0;
+            font-size: 1.1rem;
+            transition: color 0.3s ease;
+            z-index: 1;
+        }
+
+        input:focus + .input-icon {
+            color: #ed8936;
+        }
+
+        /* Password toggle */
+        .password-toggle:hover {
+            color: #ed8936;
+            background: rgba(237, 137, 54, 0.1);
+        }
+
+        /* Remember me checkbox */
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: #4a5568;
+            transition: color 0.3s ease;
+        }
+
+        .checkbox-wrapper:hover {
+            color: #2d3748;
+        }
+
+        .custom-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            opacity: 0;
+            position: absolute;
+            width: 0;
+            height: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        .checkbox-wrapper input[type="checkbox"]:checked + .custom-checkbox {
+            background: #ed8936;
+            border-color: #ed8936;
+        }
+
+        .checkbox-wrapper input[type="checkbox"]:checked + .custom-checkbox::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .forgot-password {
+            color: #ed8936;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .forgot-password:hover {
+            color: #dd6b20;
+            text-decoration: underline;
+        }
+
+        .submit-button {
+            width: 100%;
+            background: linear-gradient(135deg, #ed8936, #dd6b20);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .submit-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .submit-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(237, 137, 54, 0.4);
+        }
+
+        .submit-button:hover::before {
+            left: 100%;
+        }
+
+        .submit-button:active {
+            transform: translateY(0);
+            transition: transform 0.1s ease;
+        }
+
+        .submit-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Success/Error messages */
+        .message {
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+        }
+
+        .success-message {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            animation: successSlide 0.5s ease-out;
+        }
+
+        .error-message {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+            color: white;
+            animation: errorShake 0.5s ease-out;
+        }
+
+        @keyframes successSlide {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes errorShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Loading state */
+        .loading {
+            position: relative;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            margin: auto;
+            border: 2px solid transparent;
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s ease infinite;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        /* Admin-specific styling */
+        .admin-info {
+            background: rgba(237, 137, 54, 0.1);
+            border: 1px solid rgba(237, 137, 54, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+            color: #744210;
+        }
+
+        .admin-info h3 {
+            color: #744210;
+            margin-bottom: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .back-button {
+                left: 20px;
+                top: 20px;
+                padding: 10px 12px;
+                font-size: 0.9rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .styled-form {
+                padding: 30px 24px;
+                margin: 0 10px;
+            }
+
+            header {
+                padding: 30px 20px 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .styled-form {
+                padding: 24px 20px;
+            }
+
+            h1 {
+                font-size: 1.75rem;
+            }
+
+            .remember-forgot {
+                flex-direction: column;
+                gap: 16px;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-button" onclick="goBack()" id="backButton">
+        ← Back
+    </button>
+
+    <header>
+        <h1>Admin Portal</h1>
+        <p class="subtitle">Administrator access to system controls</p>
+    </header>
+
+    <main class="form-container">
+        <form class="styled-form" id="loginForm" method="POST" action="{{ url_for('allocator_login') }}" novalidate>
+            <div class="welcome-message">
+                <h2>Allocator Login</h2>
+                <p>Enter admin credentials to access the system</p>
+            </div>
+
+            <div class="admin-info">
+                <h3>🎯 Admin Functions</h3>
+                <p>• Manage seat allocation algorithms<br>
+                • Monitor system-wide statistics<br>
+                • Generate comprehensive reports<br>
+                • Oversee the entire admission process</p>
+            </div>
+
+            <div class="message success-message" id="successMessage">
+                ✓ Login successful! Redirecting to dashboard...
+            </div>
+            
+            <div class="message error-message" id="errorMessage">
+                ⚠ Invalid admin credentials. Please try again.
+            </div>
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-wrapper">
+                    <input type="text" id="username" name="username" placeholder="Enter admin username" required>
+                    <span class="input-icon">👤</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-wrapper">
+                    <input type="password" id="password" name="password" placeholder="Enter admin password" required>
+                    <span class="input-icon">🔒</span>
+                    <button type="button" class="password-toggle" onclick="togglePassword()">👁️</button>
+                </div>
+            </div>
+
+            <div class="remember-forgot">
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="remember" name="remember">
+                    <span class="custom-checkbox"></span>
+                    Remember session
+                </label>
+                <a href="#" class="forgot-password" onclick="showForgotPassword()">Reset credentials?</a>
+            </div>
+
+            <button type="submit" class="submit-button" id="submitButton">
+                Access Admin Panel
+            </button>
+        </form>
+    </main>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const submitButton = document.getElementById('submitButton');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+
+        // Demo admin credentials
+        const ADMIN_CREDENTIALS = {
+            'admin': 'admin123',
+            'allocator': 'password',
+            'system': 'system789'
+        };
+
+        // Fixed back button function
+        function goBack() {
+            console.log('Allocator Login: Back button clicked - navigating to index');
+            window.location.href = 'index.html';
+        }
+
+        // Real-time validation
+        const inputs = form.querySelectorAll('input[required]');
+        inputs.forEach(input => {
+            input.addEventListener('input', validateField);
+            input.addEventListener('blur', validateField);
+        });
+
+        function validateField(e) {
+            const field = e.target;
+            const isValid = field.checkValidity() && field.value.trim() !== '';
+            
+            if (isValid) {
+                field.style.borderColor = '#48bb78';
+            } else if (field.value.trim() !== '') {
+                field.style.borderColor = '#f56565';
+            } else {
+                field.style.borderColor = '#e2e8f0';
+            }
+        }
+
+        // Password toggle functionality
+        function togglePassword() {
+            const passwordField = document.getElementById('password');
+            const toggleButton = document.querySelector('.password-toggle');
+            
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                toggleButton.textContent = '🙈';
+            } else {
+                passwordField.type = 'password';
+                toggleButton.textContent = '👁️';
+            }
+        }
+
+        // Basic client-side validation before submit
+        form.addEventListener('submit', function(e) {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!username || !password) {
+                e.preventDefault();
+                alert('Please fill in all fields.');
+            }
+        });
+
+        function showForgotPassword() {
+            alert('Admin credential reset functionality would be implemented here.\n\nFor demo purposes, try:\n- Username: "admin", Password: "admin123"\n- Username: "allocator", Password: "alloc456"\n- Username: "system", Password: "system789"');
+        }
+
+        // Auto-focus first input
+        window.addEventListener('load', () => {
+            usernameInput.focus();
+        });
+
+        // Enter key navigation
+        usernameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                passwordInput.focus();
+            }
+        });
+
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>

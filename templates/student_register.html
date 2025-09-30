@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registration - Student Allotment System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background elements */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            top: -150px;
+            right: -150px;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            bottom: -100px;
+            left: -100px;
+            animation: pulse 6s ease-in-out infinite reverse;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.3; }
+            50% { transform: scale(1.1) rotate(180deg); opacity: 0.1; }
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            padding: 40px 20px 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            animation: slideDown 0.8s ease-out 0.2s forwards;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            animation: slideDown 0.8s ease-out 0.4s forwards;
+        }
+
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateX(-3px);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .styled-form {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 100%;
+            max-width: 480px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: formSlideUp 0.8s ease-out 0.6s forwards;
+        }
+
+        @keyframes formSlideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2d3748;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: color 0.3s ease;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+            color: #2d3748;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 4px rgba(66, 153, 225, 0.1);
+            transform: translateY(-2px);
+        }
+
+        input:valid {
+            border-color: #48bb78;
+        }
+
+        input:invalid:not(:placeholder-shown) {
+            border-color: #f56565;
+        }
+
+        /* Custom select styling */
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            cursor: pointer;
+        }
+
+        /* Input validation indicators */
+        .form-group::after {
+            content: '';
+            position: absolute;
+            right: 16px;
+            top: 43px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .form-group.valid::after {
+            content: '✓';
+            background: #48bb78;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            opacity: 1;
+        }
+
+        .form-group.invalid::after {
+            content: '!';
+            background: #f56565;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            opacity: 1;
+        }
+
+        .submit-button {
+            width: 100%;
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .submit-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .submit-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(66, 153, 225, 0.4);
+        }
+
+        .submit-button:hover::before {
+            left: 100%;
+        }
+
+        .submit-button:active {
+            transform: translateY(0);
+            transition: transform 0.1s ease;
+        }
+
+        .submit-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 24px;
+            color: #718096;
+            font-size: 0.95rem;
+            opacity: 0;
+            animation: fadeIn 1s ease-out 1s forwards;
+        }
+
+        .login-link a {
+            color: #4299e1;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .login-link a:hover {
+            color: #3182ce;
+            text-decoration: underline;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Password strength indicator */
+        .password-strength {
+            margin-top: 8px;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .password-strength.visible {
+            opacity: 1;
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .password-strength.weak .password-strength-bar {
+            width: 33%;
+            background: #f56565;
+        }
+
+        .password-strength.medium .password-strength-bar {
+            width: 66%;
+            background: #ed8936;
+        }
+
+        .password-strength.strong .password-strength-bar {
+            width: 100%;
+            background: #48bb78;
+        }
+
+        .password-hint {
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: #718096;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .password-hint.visible {
+            opacity: 1;
+        }
+
+        /* Loading state */
+        .loading {
+            position: relative;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            margin: auto;
+            border: 2px solid transparent;
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s ease infinite;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        /* Success message */
+        .success-message {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            animation: successSlide 0.5s ease-out;
+        }
+
+        @keyframes successSlide {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Error message */
+        .error-message {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            animation: errorShake 0.5s ease-out;
+        }
+
+        @keyframes errorShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .back-button {
+                left: 20px;
+                top: 20px;
+                padding: 10px 12px;
+                font-size: 0.9rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .styled-form {
+                padding: 30px 24px;
+                margin: 0 10px;
+            }
+
+            header {
+                padding: 30px 20px 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .styled-form {
+                padding: 24px 20px;
+            }
+
+            h1 {
+                font-size: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-button" onclick="goBack()" id="backButton">
+        ← Back
+    </button>
+
+    <header>
+        <h1>Student Registration</h1>
+    </header>
+
+    <main class="form-container">
+        <form class="styled-form" id="registrationForm" novalidate>
+            <div class="success-message" id="successMessage">
+                ✓ Registration successful! Redirecting to login...
+            </div>
+            
+            <div class="error-message" id="errorMessage">
+                ⚠ Please fix the errors below and try again.
+            </div>
+
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" placeholder="Enter your full name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email address" required>
+            </div>
+
+            <div class="form-group">
+                <label for="exam_rank">Entrance Exam Rank</label>
+                <input type="number" id="exam_rank" name="exam_rank" placeholder="Enter your rank" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Create a strong password" required>
+                <div class="password-strength" id="passwordStrength">
+                    <div class="password-strength-bar"></div>
+                </div>
+                <div class="password-hint" id="passwordHint">
+                    Password must be at least 8 characters long
+                </div>
+            </div>
+
+            <button type="submit" class="submit-button" id="submitButton">
+                Register Account
+            </button>
+        </form>
+
+        <div class="login-link">
+            Already registered? <a href="#" onclick="navigateToLogin()">Login here</a>
+        </div>
+    </main>
+
+    <script>
+        const form = document.getElementById('registrationForm');
+        const submitButton = document.getElementById('submitButton');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const passwordInput = document.getElementById('password');
+        const passwordStrength = document.getElementById('passwordStrength');
+        const passwordHint = document.getElementById('passwordHint');
+
+        // Fixed back button function with debug logging
+        function goBack() {
+            window.location.href = "{{ url_for('student_login') }}";
+        }
+
+        // Fixed login navigation function
+        function navigateToLogin() {
+            window.location.href = "{{ url_for('student_login') }}";
+        }
+
+        // Add fallback event listener for back button
+        document.addEventListener('DOMContentLoaded', function() {
+            const backButton = document.getElementById('backButton');
+            if (backButton) {
+                backButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Student Register: Back button fallback event triggered');
+                    goBack();
+                });
+            }
+        });
+
+        // Real-time validation
+        const inputs = form.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            input.addEventListener('input', validateField);
+            input.addEventListener('blur', validateField);
+        });
+
+        function validateField(e) {
+            const field = e.target;
+            const formGroup = field.closest('.form-group');
+            
+            formGroup.classList.remove('valid', 'invalid');
+            
+            if (field.checkValidity() && field.value.trim() !== '') {
+                if (field.type === 'password') {
+                    if (isPasswordStrong(field.value)) {
+                        formGroup.classList.add('valid');
+                    } else {
+                        formGroup.classList.add('invalid');
+                    }
+                } else {
+                    formGroup.classList.add('valid');
+                }
+            } else if (field.value.trim() !== '') {
+                formGroup.classList.add('invalid');
+            }
+        }
+
+        // Password strength checker
+        passwordInput.addEventListener('input', function(e) {
+            const password = e.target.value;
+            passwordStrength.classList.toggle('visible', password.length > 0);
+            passwordHint.classList.toggle('visible', password.length > 0);
+            
+            const strength = getPasswordStrength(password);
+            passwordStrength.className = `password-strength visible ${strength}`;
+            
+            updatePasswordHint(password, strength);
+        });
+
+        function getPasswordStrength(password) {
+            let score = 0;
+            if (password.length >= 8) score++;
+            if (/[a-z]/.test(password)) score++;
+            if (/[A-Z]/.test(password)) score++;
+            if (/[0-9]/.test(password)) score++;
+            if (/[^A-Za-z0-9]/.test(password)) score++;
+            
+            if (score < 3) return 'weak';
+            if (score < 5) return 'medium';
+            return 'strong';
+        }
+
+        function isPasswordStrong(password) {
+            return password.length >= 8 && 
+                   /[a-z]/.test(password) && 
+                   /[A-Z]/.test(password) && 
+                   /[0-9]/.test(password);
+        }
+
+        function updatePasswordHint(password, strength) {
+            let hint = '';
+            if (password.length === 0) {
+                hint = 'Password must be at least 8 characters long';
+            } else if (strength === 'weak') {
+                hint = 'Weak password. Add uppercase, lowercase, and numbers.';
+            } else if (strength === 'medium') {
+                hint = 'Good password. Consider adding special characters.';
+            } else {
+                hint = 'Strong password! ✓';
+            }
+            passwordHint.textContent = hint;
+        }
+
+        // Form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Validate all fields
+            let isValid = true;
+            inputs.forEach(input => {
+                const formGroup = input.closest('.form-group');
+                formGroup.classList.remove('valid', 'invalid');
+                
+                if (!input.checkValidity() || input.value.trim() === '') {
+                    isValid = false;
+                    formGroup.classList.add('invalid');
+                } else {
+                    if (input.type === 'password' && !isPasswordStrong(input.value)) {
+                        isValid = false;
+                        formGroup.classList.add('invalid');
+                    } else {
+                        formGroup.classList.add('valid');
+                    }
+                }
+            });
+
+            if (!isValid) {
+                showError();
+                return;
+            }
+
+            // Submit the actual form to the server
+            submitButton.classList.add('loading');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Creating Account...';
+            
+            // Create FormData and submit
+            const formData = new FormData(form);
+            fetch(form.action || '/student/register', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    showSuccess();
+                    setTimeout(() => {
+                        window.location.href = "{{ url_for('student_login') }}";
+                    }, 2000);
+                } else {
+                    throw new Error('Registration failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError();
+                submitButton.classList.remove('loading');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Register Account';
+            });
+        });
+
+        function showSuccess() {
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'flex';
+            submitButton.style.background = 'linear-gradient(135deg, #48bb78, #38a169)';
+            submitButton.textContent = 'Account Created! ✓';
+        }
+
+        function showError() {
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'flex';
+            
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // Auto-focus first input
+        window.addEventListener('load', () => {
+            document.getElementById('name').focus();
+        });
+    </script>
+</body>
+</html>

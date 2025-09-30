@@ -1,0 +1,43 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f4f6f9;
+    text-align: center;
+}
+
+header {
+    background: #2c3e50;
+    color: white;
+    padding: 20px;
+}
+
+.role-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    margin-top: 50px;
+    flex-wrap: wrap;
+}
+
+.role-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 250px;
+    box-shadow: 0px 4px 8px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+}
+
+.role-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+    background: #eaf3ff;
+}
+
+.role-card h2 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
