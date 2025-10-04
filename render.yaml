@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: student-allotment-system      # Name of your service on Render
+    env: python                          # Environment type
+    plan: free                            # Free plan
+    repo: https://github.com/nehas2004/student_allotment_system
+    branch: main                         # Branch to deploy from
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app       # Run your Flask app
