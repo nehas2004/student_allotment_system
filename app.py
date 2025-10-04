@@ -11,9 +11,11 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import tempfile
+import io
+import csv
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-this-in-production'
+app.secret_key = 'your_very_secret_key'  # Required for sessions to work
 
 # MySQL Database Configuration
 DB_CONFIG = {
@@ -30,8 +32,23 @@ def get_db_connection():
         connection = mysql.connector.connect(**DB_CONFIG)
         return connection
     except Error as e:
-        print(f"Error connecting to MySQL: {e}")
-        return None
+        print(f"Error connecting to MySQL database: {e}")
+        # Try to create the database if it doesn't exist
+        try:
+            temp_config = DB_CONFIG.copy()
+            temp_config.pop('database', None)
+            temp_connection = mysql.connector.connect(**temp_config)
+            temp_cursor = temp_connection.cursor()
+            temp_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
+            temp_connection.commit()
+            temp_connection.close()
+            print(f"Database '{DB_CONFIG['database']}' created or already exists")
+            # Now try to connect again
+            connection = mysql.connector.connect(**DB_CONFIG)
+            return connection
+        except Error as e2:
+            print(f"Error creating database or connecting: {e2}")
+            return None
 
 def init_db():
     """Initialize the database with required tables and columns if they don't exist"""
@@ -113,7 +130,8 @@ def init_db():
             # Insert default admin if not exists
             # Store admin password as plain text (not recommended for production)
             cursor.execute('''
-                INSERT IGNORE INTO admin (username, password) VALUES (%s, %s)
+                INSERT INTO admin (username, password) VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE password = VALUES(password)
             ''', ('admin', 'admin123'))
             print("Default admin inserted or already exists")
 
@@ -131,30 +149,115 @@ def init_db():
         except Error as e:
             print(f"Error creating admin table: {e}")
 
+        # Create allotments table if not exists
+        try:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS allotments (
+                    allotment_id INT AUTO_INCREMENT PRIMARY KEY,
+                    student_id INT NOT NULL,
+                    course_id INT NOT NULL,
+                    allotment_status VARCHAR(50) DEFAULT 'Allocated',
+                    allotment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (student_id) REFERENCES students(student_id),
+                    FOREIGN KEY (course_id) REFERENCES courses(course_id),
+                    UNIQUE KEY unique_allotment (student_id)
+                )
+            ''')
+            print("Allotments table created or already exists")
+        except Error as e:
+            print(f"Error creating allotments table: {e}")
+
+        # Add allotment_date column to allotments table if not exists
+        try:
+            cursor.execute("SHOW COLUMNS FROM allotments LIKE 'allotment_date'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE allotments ADD COLUMN allotment_date DATETIME DEFAULT CURRENT_TIMESTAMP')
+                print("Added allotment_date column to allotments table")
+        except Error as e:
+            print(f"Error adding allotment_date column to allotments table: {e}")
+
+        # Add category-specific seat columns to courses if not exists
+        try:
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'gen_seats'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN gen_seats INT DEFAULT 0')
+                print("Added gen_seats column to courses table")
+
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'obc_seats'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN obc_seats INT DEFAULT 0')
+                print("Added obc_seats column to courses table")
+
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'sc_seats'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN sc_seats INT DEFAULT 0')
+                print("Added sc_seats column to courses table")
+
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'st_seats'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN st_seats INT DEFAULT 0')
+                print("Added st_seats column to courses table")
+
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'ews_seats'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN ews_seats INT DEFAULT 0')
+                print("Added ews_seats column to courses table")
+
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'gen_filled'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN gen_filled INT DEFAULT 0')
+                print("Added gen_filled column to courses table")
+
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'obc_filled'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN obc_filled INT DEFAULT 0')
+                print("Added obc_filled column to courses table")
+
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'sc_filled'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN sc_filled INT DEFAULT 0')
+                print("Added sc_filled column to courses table")
+
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'st_filled'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN st_filled INT DEFAULT 0')
+                print("Added st_filled column to courses table")
+
+            cursor.execute("SHOW COLUMNS FROM courses LIKE 'ews_filled'")
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE courses ADD COLUMN ews_filled INT DEFAULT 0')
+                print("Added ews_filled column to courses table")
+        except Error as e:
+            print(f"Error adding category columns to courses table: {e}")
+
         # Add sample courses if none exist
         try:
             cursor.execute('SELECT COUNT(*) FROM courses')
             course_count = cursor.fetchone()[0]
-            
+
             if course_count == 0:
                 # First get college IDs
                 cursor.execute('SELECT college_id FROM colleges')
                 college_ids = cursor.fetchall()
-                
+
                 if college_ids:
                     sample_courses = [
                         ('Computer Science Engineering', college_ids[0][0], 60, 'CSE',
-                         'Study of computer systems, programming, and software development'),
+                         'Study of computer systems, programming, and software development',
+                         24, 16, 9, 5, 6),  # GEN:40%, OBC:27%, SC:15%, ST:7.5%, EWS:10%
                         ('Electronics Engineering', college_ids[0][0], 40, 'ECE',
-                         'Focus on electronic systems, circuits, and communication'),
+                         'Focus on electronic systems, circuits, and communication',
+                         16, 11, 6, 3, 4),
                         ('Mechanical Engineering', college_ids[0][0], 50, 'MECH',
-                         'Study of mechanical systems, thermodynamics, and manufacturing'),
+                         'Study of mechanical systems, thermodynamics, and manufacturing',
+                         20, 14, 8, 4, 5),
                     ]
-                    
+
                     cursor.executemany('''
-                        INSERT INTO courses 
-                        (course_name, college_id, available_seats, department, description)
-                        VALUES (%s, %s, %s, %s, %s)
+                        INSERT INTO courses
+                        (course_name, college_id, available_seats, department, description,
+                         gen_seats, obc_seats, sc_seats, st_seats, ews_seats)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ''', sample_courses)
                     print("Sample courses added")
         except Error as e:
@@ -184,49 +287,54 @@ def student_register():
         email = request.form['email'].strip()
         password = request.form['password']
         exam_rank = int(request.form['exam_rank'])
-        
+        category = request.form['category'].strip()
+
         # Validate input
-        if not name or not email or not password or not exam_rank:
+        if not name or not email or not password or not exam_rank or not category:
             flash('All fields are required', 'error')
             return render_template('student_register.html')
-        
+
         if exam_rank < 1:
             flash('Exam rank must be a positive number', 'error')
             return render_template('student_register.html')
-        
+
+        if category not in ['GEN', 'OBC', 'SC', 'ST', 'EWS']:
+            flash('Invalid category selected', 'error')
+            return render_template('student_register.html')
+
         connection = get_db_connection()
         if connection:
             cursor = connection.cursor()
-            
+
             # Check if student already exists
-            cursor.execute('SELECT student_id FROM students WHERE email = %s OR exam_rank = %s', 
+            cursor.execute('SELECT student_id FROM students WHERE email = %s OR exam_rank = %s',
                          (email, exam_rank))
             existing = cursor.fetchone()
-            
+
             if existing:
                 flash('A student with this email or exam rank already exists', 'error')
                 connection.close()
                 return render_template('student_register.html')
-            
+
             # Insert new student
             try:
                 # Store password as plain text (not recommended for production)
                 cursor.execute('''
-                    INSERT INTO students (name, email, password, exam_rank)
-                    VALUES (%s, %s, %s, %s)
-                ''', (name, email, password, exam_rank))
-                
+                    INSERT INTO students (name, email, password, exam_rank, category)
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', (name, email, password, exam_rank, category))
+
                 connection.commit()
                 flash('Registration successful! Please login.', 'success')
                 connection.close()
                 return redirect(url_for('student_login'))
-                
+
             except Error as e:
                 flash(f'Registration failed: {str(e)}', 'error')
                 connection.close()
         else:
             flash('Database connection failed', 'error')
-    
+
     return render_template('student_register.html')
 
 @app.route('/student/login', methods=['GET', 'POST'])
@@ -470,8 +578,7 @@ def college_login():
         password = request.form['password']
         
         if not college_name or not password:
-            flash('All fields are required', 'error')
-            return render_template('college_login.html')
+            return jsonify({'success': False, 'message': 'All fields are required'}), 400
         
         connection = get_db_connection()
         if connection:
@@ -484,12 +591,11 @@ def college_login():
             if college and college[2] == password:
                 session['college_id'] = college[0]
                 session['college_name'] = college[1]
-                flash('Login successful!', 'success')
-                return redirect(url_for('college_dashboard'))
+                return jsonify({'success': True, 'message': 'Login successful'})
             else:
-                flash('Invalid College Name or password', 'error')
+                return jsonify({'success': False, 'message': 'Invalid College Name or password'}), 401
         else:
-            flash('Database connection failed', 'error')
+            return jsonify({'success': False, 'message': 'Database connection failed'}), 500
     
     return render_template('college_login.html')
 
@@ -532,14 +638,26 @@ def college_dashboard():
             ORDER BY s.exam_rank
         ''', (college_id,))
         applicants = cursor.fetchall()
-        
+
+        # Get allocated students for this college
+        cursor.execute('''
+            SELECT s.name, s.exam_rank, s.category, 1 as allotment_round, a.allotment_date
+            FROM allotments a
+            JOIN students s ON a.student_id = s.student_id
+            JOIN courses co ON a.course_id = co.course_id
+            WHERE co.college_id = %s AND a.allotment_status = 'Allocated'
+            ORDER BY a.allotment_date DESC
+        ''', (college_id,))
+        allocated_students = cursor.fetchall()
+
         connection.close()
-        
-        return render_template('college_dashboard.html', 
-                             college=college, 
-                             courses=courses, 
+
+        return render_template('college_dashboard.html',
+                             college=college,
+                             courses=courses,
                              applicants=applicants,
-                             total_applicants=len(applicants))
+                             total_applicants=len(applicants),
+                             allocated_students=allocated_students)
     else:
         flash('Database connection failed', 'error')
         return redirect(url_for('college_login'))
@@ -610,12 +728,13 @@ def allocator_login():
             if admin and admin[0] == password:
                 session['admin_logged_in'] = True
                 session['admin_username'] = username
-                flash('Admin login successful!', 'success')
-                return redirect(url_for('allocator_dashboard'))
+                session.modified = True
+                session.permanent = True
+                return jsonify({'success': True, 'message': 'Admin login successful'})
             else:
-                flash('Invalid admin credentials', 'error')
+                return jsonify({'success': False, 'message': 'Invalid admin credentials'}), 401
         else:
-            flash('Database connection failed', 'error')
+            return jsonify({'success': False, 'message': 'Database connection failed'}), 500
     
     return render_template('allocator_login.html')
 
@@ -624,113 +743,318 @@ def allocator_dashboard():
     """Allocator dashboard"""
     if 'admin_logged_in' not in session:
         return redirect(url_for('allocator_login'))
+
+    try:
+        connection = get_db_connection()
+        if connection:
+            cursor = connection.cursor()
+
+            # Get system statistics
+            cursor.execute('SELECT COUNT(*) FROM students')
+            total_students = cursor.fetchone()[0]
+
+            cursor.execute('SELECT COUNT(*) FROM colleges')
+            total_colleges = cursor.fetchone()[0]
+
+            cursor.execute('SELECT COUNT(*) FROM courses')
+            total_courses = cursor.fetchone()[0]
+
+            cursor.execute('SELECT COUNT(*) FROM allotments')
+            total_allocations = cursor.fetchone()[0]
+
+            # Get all students with their preferences
+            cursor.execute('''
+                SELECT s.student_id, s.name, s.email, s.exam_rank,
+                       GROUP_CONCAT(CONCAT(co.course_name, ' (', c.college_name, ')') ORDER BY p.priority_order) as preferences
+                FROM students s
+                LEFT JOIN preferences p ON s.student_id = p.student_id
+                LEFT JOIN courses co ON p.course_id = co.course_id
+                LEFT JOIN colleges c ON co.college_id = c.college_id
+                GROUP BY s.student_id, s.name, s.email, s.exam_rank
+                ORDER BY s.exam_rank
+            ''')
+            students_with_preferences = cursor.fetchall()
+
+            connection.close()
+
+            return render_template('allocator_dashboard.html',
+                                 total_students=total_students,
+                                 total_colleges=total_colleges,
+                                 total_courses=total_courses,
+                                 total_allocations=total_allocations,
+                                 students_with_preferences=students_with_preferences)
+        else:
+            flash('Database connection failed', 'error')
+            return redirect(url_for('allocator_login'))
+    except Error as e:
+        print(f"Database error in allocator dashboard: {e}")
+        flash('Database error occurred', 'error')
+        return redirect(url_for('allocator_login'))
+@app.route('/allocator/allocate', methods=['POST'])
+def allocator_allocate():
+    """Run category-based allocation algorithm with specified number of students"""
+    if 'admin_logged_in' not in session:
+        return jsonify({'success': False, 'error': 'Not authorized'}), 401
+    
+    num_to_allocate = int(request.form.get('num_to_allocate', 0))
+    
+    if num_to_allocate < 1:
+        return jsonify({'success': False, 'error': 'Invalid number of students'}), 400
     
     connection = get_db_connection()
-    if connection:
-        cursor = connection.cursor()
-        
-        # Get system statistics
-        cursor.execute('SELECT COUNT(*) FROM students')
-        total_students = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM colleges')
-        total_colleges = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM courses')
-        total_courses = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM allotments')
-        total_allocations = cursor.fetchone()[0]
-        
-        # Get all students with their preferences
+    if not connection:
+        return jsonify({'success': False, 'error': 'Database connection failed'}), 500
+    
+    cursor = connection.cursor(dictionary=True)
+    
+    try:
+        # Step 1: Reset filled counts for all courses
         cursor.execute('''
-            SELECT s.student_id, s.name, s.email, s.exam_rank,
-                   GROUP_CONCAT(CONCAT(co.course_name, ' (', c.college_name, ')') ORDER BY p.priority_order) as preferences
-            FROM students s
-            LEFT JOIN preferences p ON s.student_id = p.student_id
-            LEFT JOIN courses co ON p.course_id = co.course_id
-            LEFT JOIN colleges c ON co.college_id = c.college_id
-            GROUP BY s.student_id, s.name, s.email, s.exam_rank
-            ORDER BY s.exam_rank
+            UPDATE courses 
+            SET gen_filled = 0, obc_filled = 0, sc_filled = 0, st_filled = 0, ews_filled = 0
         ''')
-        students_with_preferences = cursor.fetchall()
         
+        # Step 2: Clear existing allocations
+        cursor.execute('DELETE FROM allotments')
+        
+        # Step 3: Get students ordered by exam_rank, limit to num_to_allocate
+        cursor.execute('''
+            SELECT student_id, name, exam_rank, category
+            FROM students
+            ORDER BY exam_rank
+            LIMIT %s
+        ''', (num_to_allocate,))
+        students = cursor.fetchall()
+        
+        allocated_count = 0
+        allocation_details = []
+        
+        # Step 4: Process each student
+        for student in students:
+            student_id = student['student_id']
+            student_category = student['category']
+            
+            # Get student preferences ordered by priority
+            cursor.execute('''
+                SELECT p.course_id, c.course_name, c.college_id, col.college_name,
+                       c.gen_seats, c.obc_seats, c.sc_seats, c.st_seats, c.ews_seats,
+                       c.gen_filled, c.obc_filled, c.sc_filled, c.st_filled, c.ews_filled
+                FROM preferences p
+                JOIN courses c ON p.course_id = c.course_id
+                JOIN colleges col ON c.college_id = col.college_id
+                WHERE p.student_id = %s
+                ORDER BY p.priority_order
+            ''', (student_id,))
+            preferences = cursor.fetchall()
+            
+            allocated = False
+            
+            # Step 5: Try to allocate based on preferences
+            for pref in preferences:
+                course_id = pref['course_id']
+                
+                # Check if category has available seats
+                category_seats_col = f'{student_category.lower()}_seats'
+                category_filled_col = f'{student_category.lower()}_filled'
+                
+                category_seats = pref[category_seats_col]
+                category_filled = pref[category_filled_col]
+                
+                if category_filled < category_seats:
+                    # Allocate seat
+                    cursor.execute('''
+                        INSERT INTO allotments (student_id, course_id, allotment_status, allotment_date)
+                        VALUES (%s, %s, 'Allocated', NOW())
+                    ''', (student_id, course_id))
+                    
+                    # Increment filled count for this category
+                    cursor.execute(f'''
+                        UPDATE courses 
+                        SET {category_filled_col} = {category_filled_col} + 1
+                        WHERE course_id = %s
+                    ''', (course_id,))
+                    
+                    allocated_count += 1
+                    allocation_details.append({
+                        'student_id': student_id,
+                        'name': student['name'],
+                        'rank': student['exam_rank'],
+                        'category': student_category,
+                        'course': pref['course_name'],
+                        'college': pref['college_name']
+                    })
+                    allocated = True
+                    break
+            
+            # If not allocated, student remains unallocated
+            if not allocated:
+                allocation_details.append({
+                    'student_id': student_id,
+                    'name': student['name'],
+                    'rank': student['exam_rank'],
+                    'category': student_category,
+                    'status': 'Not Allocated - No seats available in preferences'
+                })
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'allocated_count': allocated_count,
+            'total_processed': len(students),
+            'details': allocation_details
+        })
+        
+    except Error as e:
+        connection.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
         connection.close()
-        
-        return render_template('allocator_dashboard.html',
-                             total_students=total_students,
-                             total_colleges=total_colleges,
-                             total_courses=total_courses,
-                             total_allocations=total_allocations,
-                             students_with_preferences=students_with_preferences)
-    else:
-        flash('Database connection failed', 'error')
-        return redirect(url_for('allocator_login'))
 
-@app.route('/allocator/run_allocation', methods=['POST'])
-def run_allocation():
-    """Run the allocation algorithm"""
+
+@app.route('/allocator/allocations')
+def get_allocations():
+    """Get all current allocations with student and course details"""
+    if 'admin_logged_in' not in session:
+        return jsonify({'success': False, 'error': 'Not authorized'}), 401
+    
+    connection = get_db_connection()
+    if not connection:
+        return jsonify([])
+    
+    cursor = connection.cursor(dictionary=True)
+    
+    cursor.execute('''
+        SELECT 
+            a.allotment_id,
+            s.student_id,
+            s.name as student_name,
+            s.exam_rank,
+            s.category,
+            c.course_name,
+            col.college_name,
+            a.allotment_status,
+            a.allotment_date
+        FROM allotments a
+        JOIN students s ON a.student_id = s.student_id
+        JOIN courses c ON a.course_id = c.course_id
+        JOIN colleges col ON c.college_id = col.college_id
+        ORDER BY s.exam_rank
+    ''')
+    
+    allocations = cursor.fetchall()
+    connection.close()
+    
+    # Convert datetime to string
+    for alloc in allocations:
+        if alloc.get('allotment_date'):
+            alloc['allotment_date'] = alloc['allotment_date'].strftime('%Y-%m-%d %H:%M:%S')
+    
+    return jsonify(allocations)
+
+
+@app.route('/allocator/delete/<int:allotment_id>', methods=['POST'])
+def delete_allocation(allotment_id):
+    """Delete a specific allocation"""
+    if 'admin_logged_in' not in session:
+        return jsonify({'success': False, 'error': 'Not authorized'}), 401
+    
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'success': False, 'error': 'Database connection failed'}), 500
+    
+    cursor = connection.cursor(dictionary=True)
+    
+    try:
+        # Get allocation details before deleting
+        cursor.execute('''
+            SELECT a.student_id, a.course_id, s.category
+            FROM allotments a
+            JOIN students s ON a.student_id = s.student_id
+            WHERE a.allotment_id = %s
+        ''', (allotment_id,))
+        
+        alloc = cursor.fetchone()
+        
+        if not alloc:
+            return jsonify({'success': False, 'error': 'Allocation not found'}), 404
+        
+        # Delete the allocation
+        cursor.execute('DELETE FROM allotments WHERE allotment_id = %s', (allotment_id,))
+        
+        # Decrement the category filled count
+        category = alloc['category'].lower()
+        cursor.execute(f'''
+            UPDATE courses 
+            SET {category}_filled = {category}_filled - 1
+            WHERE course_id = %s AND {category}_filled > 0
+        ''', (alloc['course_id'],))
+        
+        connection.commit()
+        
+        return jsonify({'success': True, 'message': 'Allocation deleted successfully'})
+        
+    except Error as e:
+        connection.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        connection.close()
+
+
+@app.route('/allocator/download')
+def download_allocations_csv():
+    """Download allocations as CSV"""
     if 'admin_logged_in' not in session:
         return redirect(url_for('allocator_login'))
     
     connection = get_db_connection()
-    if connection:
-        cursor = connection.cursor()
-        
-        # Simple allocation algorithm: assign students based on rank and preference
-        try:
-            # Clear existing allocations
-            cursor.execute('DELETE FROM allotments')
-            
-            # Get all students ordered by rank
-            cursor.execute('''
-                SELECT s.student_id, s.exam_rank
-                FROM students s
-                ORDER BY s.exam_rank
-            ''')
-            students = cursor.fetchall()
-            
-            allocated_count = 0
-            
-            for student_id, rank in students:
-                # Get student preferences ordered by priority
-                cursor.execute('''
-                    SELECT p.course_id, co.available_seats
-                    FROM preferences p
-                    JOIN courses co ON p.course_id = co.course_id
-                    WHERE p.student_id = %s
-                    ORDER BY p.priority_order
-                ''', (student_id,))
-                preferences = cursor.fetchall()
-                
-                # Try to allocate based on preferences
-                for course_id, available_seats in preferences:
-                    if available_seats > 0:
-                        # Allocate seat
-                        cursor.execute('''
-                            INSERT INTO allotments (student_id, course_id, allotment_status)
-                            VALUES (%s, %s, 'Allotted')
-                        ''', (student_id, course_id))
-                        
-                        # Decrease available seats
-                        cursor.execute('''
-                            UPDATE courses SET available_seats = available_seats - 1
-                            WHERE course_id = %s
-                        ''', (course_id,))
-                        
-                        allocated_count += 1
-                        break
-            
-            connection.commit()
-            flash(f'Allocation completed! {allocated_count} students allocated.', 'success')
-            
-        except Error as e:
-            flash(f'Allocation failed: {str(e)}', 'error')
-            connection.rollback()
-        
-        connection.close()
+    if not connection:
+        flash('Database connection failed', 'error')
+        return redirect(url_for('allocator_dashboard'))
     
-    return redirect(url_for('allocator_dashboard'))
+    cursor = connection.cursor()
+    
+    cursor.execute('''
+        SELECT 
+            a.allotment_id,
+            s.student_id,
+            s.name as student_name,
+            s.exam_rank,
+            s.category,
+            c.course_name,
+            col.college_name,
+            a.allotment_status,
+            a.allotment_date
+        FROM allotments a
+        JOIN students s ON a.student_id = s.student_id
+        JOIN courses c ON a.course_id = c.course_id
+        JOIN colleges col ON c.college_id = col.college_id
+        ORDER BY s.exam_rank
+    ''')
+    
+    allocations = cursor.fetchall()
+    connection.close()
+    
+    # Create CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['Allotment ID', 'Student ID', 'Student Name', 'Exam Rank', 'Category', 
+                     'Course Name', 'College Name', 'Status', 'Allotment Date'])
+    
+    # Write data
+    for alloc in allocations:
+        writer.writerow(alloc)
+    
+    # Prepare response
+    output.seek(0)
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'allocations_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    )
 
 @app.route('/allocator/logout')
 def allocator_logout():
@@ -766,7 +1090,7 @@ def download_allotment_memo():
             JOIN allotments a ON s.student_id = a.student_id
             JOIN courses co ON a.course_id = co.course_id
             JOIN colleges c ON co.college_id = c.college_id
-            WHERE s.student_id = %s AND a.allotment_status = 'Allotted'
+            WHERE s.student_id = %s AND a.allotment_status = 'Allocated'
         ''', (student_id,))
         
         result = cursor.fetchone()

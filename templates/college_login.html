@@ -712,7 +712,8 @@
 
                 const response = await fetch('/college/login', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    credentials: 'same-origin'
                 });
 
                 if (response.ok) {

@@ -485,7 +485,7 @@
     </header>
 
     <main class="form-container">
-        <form class="styled-form" id="loginForm" method="POST" action="{{ url_for('allocator_login') }}" novalidate>
+        <form class="styled-form" id="loginForm" novalidate>
             <div class="welcome-message">
                 <h2>Allocator Login</h2>
                 <p>Enter admin credentials to access the system</p>
@@ -594,15 +594,71 @@
             }
         }
 
-        // Basic client-side validation before submit
+        // Handle form submission with fetch
         form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
             const username = usernameInput.value.trim();
             const password = passwordInput.value.trim();
 
             if (!username || !password) {
-                e.preventDefault();
                 alert('Please fill in all fields.');
+                return;
             }
+
+            // Show loading state
+            submitButton.classList.add('loading');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Accessing...';
+
+            // Hide any previous messages
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+
+            // Create form data
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            // Send login request
+            fetch('{{ url_for("allocator_login") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    successMessage.style.display = 'flex';
+                    errorMessage.style.display = 'none';
+
+                    // Redirect after short delay
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("allocator_dashboard") }}';
+                    }, 1500);
+                } else {
+                    // Show error message
+                    errorMessage.textContent = '⚠ ' + data.message;
+                    errorMessage.style.display = 'flex';
+                    successMessage.style.display = 'none';
+
+                    // Reset form
+                    submitButton.classList.remove('loading');
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Access Admin Panel';
+                }
+            })
+            .catch(error => {
+                console.error('Login error:', error);
+                errorMessage.textContent = '⚠ Network error. Please try again.';
+                errorMessage.style.display = 'flex';
+                successMessage.style.display = 'none';
+
+                // Reset form
+                submitButton.classList.remove('loading');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Access Admin Panel';
+            });
         });
 
         function showForgotPassword() {
